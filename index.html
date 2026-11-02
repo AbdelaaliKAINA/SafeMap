@@ -24,18 +24,20 @@
       </div>
     </div>
     <div class="actions-haut">
+      <span id="mode" class="mode">Mode local</span>
       <button id="btn-position" class="bouton contour" type="button">◎ Ma position</button>
     </div>
   </header>
 
   <main id="contenu" class="disposition">
-    <!-- Colonne latérale : présentation et formulaire -->
+    <!-- Colonne latérale : présentation, formulaire et filtres -->
     <aside class="colonne">
       <section class="panneau intro" aria-labelledby="titre-intro">
         <h1 id="titre-intro">Signalements citoyens</h1>
         <p>Repérez les problèmes de votre quartier et partagez vos observations. Cliquez sur la carte ou utilisez « Ma position » pour choisir un lieu.</p>
         <div class="compteurs">
-          <div><strong id="compteur-total">0</strong><small>Signalements publiés</small></div>
+          <div><strong id="compteur-total">0</strong><small>Signalements</small></div>
+          <div><strong id="compteur-visibles">0</strong><small>Affichés</small></div>
         </div>
       </section>
 
@@ -63,6 +65,20 @@
           </div>
         </form>
       </section>
+
+      <section class="panneau" aria-labelledby="titre-filtres">
+        <div class="entete-section">
+          <h2 id="titre-filtres">Filtres</h2>
+          <button id="btn-tout-afficher" class="bouton-texte" type="button">Tout afficher</button>
+        </div>
+        <fieldset class="filtres">
+          <legend class="visuellement-cache">Catégories visibles sur la carte</legend>
+          <label><input type="checkbox" value="voirie" checked> <span class="pastille voirie" aria-hidden="true"></span> 🚧 Voirie</label>
+          <label><input type="checkbox" value="eclairage" checked> <span class="pastille eclairage" aria-hidden="true"></span> 💡 Éclairage</label>
+          <label><input type="checkbox" value="securite" checked> <span class="pastille securite" aria-hidden="true"></span> 🛡️ Sécurité</label>
+          <label><input type="checkbox" value="autre" checked> <span class="pastille autre" aria-hidden="true"></span> 📍 Autre</label>
+        </fieldset>
+      </section>
     </aside>
 
     <!-- Zone de la carte : Leaflet dessine la carte dans la div #carte -->
@@ -81,9 +97,11 @@
     <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">Données cartographiques © OpenStreetMap</a>
   </footer>
 
-  <!-- Bibliothèque Leaflet, chargée AVANT notre script qui l'utilise -->
+  <!-- Bibliothèques externes (Leaflet, Supabase), chargées AVANT nos scripts qui les utilisent -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <!-- Notre script -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Nos scripts : la configuration d'abord, puis l'application -->
+  <script src="js/config.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
