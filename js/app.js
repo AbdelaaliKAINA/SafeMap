@@ -56,6 +56,8 @@ let minuterieNotification = null;
 const elements = {
   btnPosition:   document.querySelector("#btn-position"),
   compteurTotal: document.querySelector("#compteur-total"),
+  compteurVisibles: document.querySelector("#compteur-visibles"),
+  mode:          document.querySelector("#mode"),
   formulaire:    document.querySelector("#formulaire"),
   categorie:     document.querySelector("#categorie"),
   description:   document.querySelector("#description"),
@@ -66,12 +68,19 @@ const elements = {
   notification:  document.querySelector("#notification")
 };
 
+const casesFiltres = Array.from(document.querySelectorAll(".filtres input[type='checkbox']"));
+
 
 /* =========================================================================
  * 4. CARTE LEAFLET
  * ========================================================================= */
 
 const carte = L.map("carte").setView(POSITION_DEPART, ZOOM_DEPART);
+const groupesCategories = {};
+
+Object.keys(CATEGORIES).forEach(function (categorie) {
+  groupesCategories[categorie] = L.layerGroup().addTo(carte);
+});
 
 // Tuiles OpenStreetMap ({z} = zoom, {x} et {y} = position de la tuile).
 // L'attribution est obligatoire selon la politique d'utilisation d'OpenStreetMap.
@@ -105,6 +114,45 @@ function genererId() {
   if (window.crypto && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
   }
+
+  function mettreAJourCompteurs() {
+    elements.compteurTotal.textContent = signalements.length;
+    const categoriesVisibles = new Set(
+      casesFiltres.filter(function (caseFiltre) {
+        return caseFiltre.checked;
+      }).map(function (caseFiltre) {
+        return caseFiltre.value;
+      })
+    );
+    elements.compteurVisibles.textContent = signalements.filter(function (signalement) {
+      return categoriesVisibles.has(signalement.categorie);
+    }).length;
+  }
+
+  function appliquerFiltre(caseFiltre) {
+    const groupe = groupesCategories[caseFiltre.value];
+    if (caseFiltre.checked) {
+      groupe.addTo(carte);
+    } else {
+      carte.removeLayer(groupe);
+    }
+    mettreAJourCompteurs();
+  }
+
+  casesFiltres.forEach(function (caseFiltre) {
+    caseFiltre.addEventListener("change", function () {
+      appliquerFiltre(caseFiltre);
+    });
+  });
+
+  document.querySelector("#btn-tout-afficher").addEventListener("click", function () {
+    casesFiltres.forEach(function (caseFiltre) {
+      caseFiltre.checked = true;
+      appliquerFiltre(caseFiltre);
+    });
+  });
+
+  mettreAJourCompteurs();
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
@@ -262,11 +310,11 @@ elements.formulaire.addEventListener("submit", function (evenement) {
 
   // Marqueur permanent du signalement
   L.marker([signalement.lat, signalement.lng], { alt: "Signalement " + CATEGORIES[categorie].nom })
-    .addTo(carte)
+    .addTo(groupesCategories[categorie])
     .bindPopup(creerContenuPopup(signalement))
     .openPopup();
 
-  elements.compteurTotal.textContent = signalements.length;
+  mettreAJourCompteurs();
   reinitialiserFormulaire();
   notifier("Signalement publié (non sauvegardé pour l'instant).");
 });

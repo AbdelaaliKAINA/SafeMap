@@ -34,6 +34,8 @@
 
 body {
   margin: 0;
+  min-width: 280px;
+  line-height: 1.4;
 }
 
 button,
@@ -45,6 +47,7 @@ textarea {
 
 button {
   cursor: pointer;
+  min-height: 44px;
 }
 
 a {
@@ -110,6 +113,7 @@ a {
   overflow-y: auto;
   background: var(--couleur-fond-clair);
   border-right: 1px solid var(--couleur-bordure);
+  overscroll-behavior: contain;
 }
 
 /* 5. Panneaux ------------------------------------------------------------- */
@@ -180,10 +184,12 @@ textarea {
   border-radius: var(--rayon);
   background: white;
   color: var(--couleur-texte);
+  min-height: 44px;
 }
 
 textarea {
   resize: vertical;
+  min-height: 92px;
 }
 
 .compte-caracteres {
@@ -233,6 +239,73 @@ textarea {
   color: var(--couleur-principale);
 }
 
+.contour:hover {
+  background: #eff7f7;
+}
+
+.mode {
+  color: var(--couleur-texte-secondaire);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.entete-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.entete-section h2 {
+  margin-bottom: 0;
+}
+
+.bouton-texte {
+  min-height: 36px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--couleur-principale);
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.filtres {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.filtres label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: 0;
+  padding: 4px 0;
+  font-weight: 500;
+}
+
+.filtres input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--couleur-principale);
+}
+
+.pastille {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 50%;
+}
+
+.pastille.voirie { background: #e67e22; }
+.pastille.eclairage { background: #f1c40f; }
+.pastille.securite { background: #c0392b; }
+.pastille.autre { background: #2980b9; }
+
 /* 8. Carte --------------------------------------------------------------- */
 .zone-carte {
   position: relative;
@@ -260,6 +333,7 @@ textarea {
   font-size: 13px;
   text-align: center;
   pointer-events: none; /* les clics traversent jusqu'à la carte */
+  transition: opacity 160ms ease;
 }
 
 /* 9. Notification et pied de page --------------------------------------- */
@@ -283,6 +357,11 @@ footer {
   color: #64797b;
   font-size: 12px;
   text-align: center;
+}
+
+#carte:focus-visible {
+  outline: 3px solid var(--couleur-focus);
+  outline-offset: -3px;
 }
 
 /* 10. Accessibilité ------------------------------------------------------- */
@@ -328,6 +407,8 @@ a:focus-visible {
     height: auto;
     flex-wrap: wrap;
     padding: 12px 15px;
+    position: relative;
+    z-index: 1001;
   }
 
   .marque small {
@@ -344,13 +425,14 @@ a:focus-visible {
   .zone-carte {
     order: 1;
     height: 52vh;
-    min-height: 340px;
+    min-height: 360px;
   }
 
   .colonne {
     order: 2;
     overflow: visible;
     border-right: 0;
+    padding: 12px;
   }
 
   .aide-carte {
@@ -359,12 +441,51 @@ a:focus-visible {
 
   footer {
     height: auto;
+    padding: 12px 15px;
   }
 }
 
 @media (max-width: 420px) {
+  :root {
+    font-size: 14px;
+  }
+
+  .logo {
+    width: 40px;
+    height: 40px;
+    font-size: 28px;
+  }
+
+  .marque strong {
+    font-size: 20px;
+  }
+
+  .panneau {
+    padding: 15px;
+  }
+
   .actions-haut {
     width: 100%;
     justify-content: space-between;
+  }
+
+  .actions-haut .bouton {
+    flex: 1;
+  }
+
+  .notification {
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }

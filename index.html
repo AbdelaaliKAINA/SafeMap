@@ -24,7 +24,7 @@
       </div>
     </div>
     <div class="actions-haut">
-      <span id="mode" class="mode">Mode local</span>
+      <span id="mode" class="mode" role="status" aria-live="polite">Mode local</span>
       <button id="btn-position" class="bouton contour" type="button">◎ Ma position</button>
     </div>
   </header>
@@ -55,10 +55,12 @@
 
           <label for="description">Description</label>
           <textarea id="description" name="description" rows="3" minlength="5" maxlength="500" required
-                    placeholder="Décrivez le problème (5 à 500 caractères)"></textarea>
-          <p class="compte-caracteres"><span id="nb-caracteres">0</span> / 500</p>
+                  aria-describedby="aide-description compte-caracteres"
+                  placeholder="Décrivez le problème (5 à 500 caractères)"></textarea>
+          <p id="compte-caracteres" class="compte-caracteres"><span id="nb-caracteres">0</span> / 500</p>
 
           <p id="info-endroit" class="aide" aria-live="polite">Aucun emplacement sélectionné. Cliquez sur la carte.</p>
+          <p id="aide-description" class="visuellement-cache">Entre 5 et 500 caractères.</p>
 
           <div class="actions-formulaire">
             <button id="btn-envoyer" class="bouton principal" type="submit">Publier le signalement</button>
@@ -82,10 +84,11 @@
     </aside>
 
     <!-- Zone de la carte : Leaflet dessine la carte dans la div #carte -->
-    <section class="zone-carte" aria-label="Carte interactive">
-      <div id="carte" role="region" aria-label="Carte des signalements de Saguenay"></div>
+    <section class="zone-carte" aria-labelledby="titre-carte">
+      <h2 id="titre-carte" class="visuellement-cache">Carte interactive des signalements</h2>
+      <div id="carte" role="region" aria-label="Carte des signalements de Saguenay" tabindex="0"></div>
       <!-- Bulle d'aide : masquée dès qu'un emplacement est choisi (voir choisirEndroit dans app.js) -->
-      <div id="aide-carte" class="aide-carte" aria-hidden="true">Cliquez sur la carte pour sélectionner un emplacement</div>
+      <div id="aide-carte" class="aide-carte">Cliquez sur la carte pour sélectionner un emplacement</div>
     </section>
   </main>
 

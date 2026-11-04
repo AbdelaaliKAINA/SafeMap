@@ -26,7 +26,7 @@ Technologie explorée : **[Leaflet.js](https://leafletjs.com)**, avec les tuiles
 ## À venir
 
 - Liste des signalements (voir, modifier, supprimer) et export
-- Ajustements mobile, accessibilité, tests sur navigateurs et appareils
+- Tests complémentaires sur navigateurs et appareils
 
 ## Lancer le site
 
