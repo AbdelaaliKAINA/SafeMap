@@ -6,6 +6,7 @@
  *   2. Choix d'un emplacement par clic sur la carte (marqueur déplaçable)
  *   3. « Ma position » : géolocalisation avec carte.locate() et gestion du refus
  *   4. Formulaire de signalement (catégorie, description, emplacement)
+ *   5. Marqueurs colorés : une épingle et un symbole par catégorie (L.divIcon)
  *
  * Les signalements sont gardés en mémoire pendant la visite seulement :
  * la sauvegarde est prévue à une étape suivante.
@@ -76,10 +77,30 @@ const casesFiltres = Array.from(document.querySelectorAll(".filtres input[type='
  * ========================================================================= */
 
 const carte = L.map("carte").setView(POSITION_DEPART, ZOOM_DEPART);
-const groupesCategories = {};
+const groupesCategories = {};   // Un groupe de couches par catégorie (sert aux filtres)
+const iconesCategories = {};    // Une icône par catégorie, partagée par tous ses marqueurs
+
+// Crée l'icône d'une catégorie : une épingle de couleur avec le symbole de la catégorie.
+// L.divIcon dessine le marqueur en HTML/CSS au lieu d'une image.
+function creerIcone(categorie) {
+  const infos = CATEGORIES[categorie];
+  return L.divIcon({
+    // Remplace la classe par défaut de Leaflet, la classe de catégorie donne la couleur
+    className: "marqueur " + categorie,
+    html:
+      '<span class="marqueur-epingle" aria-hidden="true">' +
+        '<span class="marqueur-symbole">' + infos.emoji + "</span>" +
+      "</span>" +
+      '<span class="visuellement-cache">Signalement ' + infos.nom + "</span>",
+    iconSize: [34, 34],    // taille de la tête de l'épingle, en pixels
+    iconAnchor: [17, 41],  // point posé sur la coordonnée : la pointe (centre + 34 × √2 / 2 ≈ 24 px)
+    popupAnchor: [0, -38]  // la fenêtre d'information s'ouvre au-dessus de l'épingle
+  });
+}
 
 Object.keys(CATEGORIES).forEach(function (categorie) {
   groupesCategories[categorie] = L.layerGroup().addTo(carte);
+  iconesCategories[categorie] = creerIcone(categorie);
 });
 
 // Tuiles OpenStreetMap ({z} = zoom, {x} et {y} = position de la tuile).
@@ -308,8 +329,8 @@ elements.formulaire.addEventListener("submit", function (evenement) {
   };
   signalements.push(signalement);
 
-  // Marqueur permanent du signalement
-  L.marker([signalement.lat, signalement.lng], { alt: "Signalement " + CATEGORIES[categorie].nom })
+  // Marqueur permanent du signalement, avec l'icône colorée de sa catégorie
+  L.marker([signalement.lat, signalement.lng], { icon: iconesCategories[categorie] })
     .addTo(groupesCategories[categorie])
     .bindPopup(creerContenuPopup(signalement))
     .openPopup();
