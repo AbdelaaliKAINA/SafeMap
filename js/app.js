@@ -135,45 +135,7 @@ function genererId() {
   if (window.crypto && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
   }
-
-  function mettreAJourCompteurs() {
-    elements.compteurTotal.textContent = signalements.length;
-    const categoriesVisibles = new Set(
-      casesFiltres.filter(function (caseFiltre) {
-        return caseFiltre.checked;
-      }).map(function (caseFiltre) {
-        return caseFiltre.value;
-      })
-    );
-    elements.compteurVisibles.textContent = signalements.filter(function (signalement) {
-      return categoriesVisibles.has(signalement.categorie);
-    }).length;
-  }
-
-  function appliquerFiltre(caseFiltre) {
-    const groupe = groupesCategories[caseFiltre.value];
-    if (caseFiltre.checked) {
-      groupe.addTo(carte);
-    } else {
-      carte.removeLayer(groupe);
-    }
-    mettreAJourCompteurs();
-  }
-
-  casesFiltres.forEach(function (caseFiltre) {
-    caseFiltre.addEventListener("change", function () {
-      appliquerFiltre(caseFiltre);
-    });
-  });
-
-  document.querySelector("#btn-tout-afficher").addEventListener("click", function () {
-    casesFiltres.forEach(function (caseFiltre) {
-      caseFiltre.checked = true;
-      appliquerFiltre(caseFiltre);
-    });
-  });
-
-  mettreAJourCompteurs();
+  // Solution de repli : date actuelle + nombre aléatoire, en base 36
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
@@ -339,3 +301,51 @@ elements.formulaire.addEventListener("submit", function (evenement) {
   reinitialiserFormulaire();
   notifier("Signalement publié (non sauvegardé pour l'instant).");
 });
+
+
+/* =========================================================================
+ * 9. FILTRES PAR CATÉGORIE ET COMPTEURS
+ * ========================================================================= */
+
+// Met à jour les deux compteurs : le total, et ceux des catégories cochées
+function mettreAJourCompteurs() {
+  elements.compteurTotal.textContent = signalements.length;
+  const categoriesVisibles = new Set(
+    casesFiltres.filter(function (caseFiltre) {
+      return caseFiltre.checked;
+    }).map(function (caseFiltre) {
+      return caseFiltre.value;
+    })
+  );
+  elements.compteurVisibles.textContent = signalements.filter(function (signalement) {
+    return categoriesVisibles.has(signalement.categorie);
+  }).length;
+}
+
+// Affiche ou masque tout le groupe de couches d'une catégorie.
+// Les marqueurs restent dans leur groupe : on ne les supprime ni ne les recrée.
+function appliquerFiltre(caseFiltre) {
+  const groupe = groupesCategories[caseFiltre.value];
+  if (caseFiltre.checked) {
+    groupe.addTo(carte);
+  } else {
+    carte.removeLayer(groupe);
+  }
+  mettreAJourCompteurs();
+}
+
+casesFiltres.forEach(function (caseFiltre) {
+  caseFiltre.addEventListener("change", function () {
+    appliquerFiltre(caseFiltre);
+  });
+});
+
+document.querySelector("#btn-tout-afficher").addEventListener("click", function () {
+  casesFiltres.forEach(function (caseFiltre) {
+    caseFiltre.checked = true;
+    appliquerFiltre(caseFiltre);
+  });
+});
+
+// Valeurs de départ des compteurs (0 au chargement)
+mettreAJourCompteurs();
