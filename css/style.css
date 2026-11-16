@@ -17,6 +17,11 @@
   --couleur-danger: #a32939;
   --couleur-focus: #80cfc4;
 
+  --couleur-voirie: #e67e22;
+  --couleur-eclairage: #f1c40f;
+  --couleur-securite: #c0392b;
+  --couleur-autre: #2980b9;
+
   --rayon: 9px;
   --hauteur-barre: 78px;
   --hauteur-pied: 35px;
@@ -26,6 +31,11 @@
   color: var(--couleur-texte);
   background: var(--couleur-fond);
 }
+
+.voirie    { --couleur-categorie: var(--couleur-voirie); }
+.eclairage { --couleur-categorie: var(--couleur-eclairage); }
+.securite  { --couleur-categorie: var(--couleur-securite); }
+.autre     { --couleur-categorie: var(--couleur-autre); }
 
 /* 2. Base ----------------------------------------------------------------- */
 * {
@@ -299,12 +309,8 @@ textarea {
   height: 10px;
   flex: 0 0 10px;
   border-radius: 50%;
+  background: var(--couleur-categorie);
 }
-
-.pastille.voirie { background: #e67e22; }
-.pastille.eclairage { background: #f1c40f; }
-.pastille.securite { background: #c0392b; }
-.pastille.autre { background: #2980b9; }
 
 /* 8. Carte --------------------------------------------------------------- */
 .zone-carte {
@@ -334,6 +340,34 @@ textarea {
   text-align: center;
   pointer-events: none; /* les clics traversent jusqu'à la carte */
   transition: opacity 160ms ease;
+}
+
+/* Marqueurs des signalements (L.divIcon, voir creerIcone dans app.js).
+   Leaflet place l'élément .marqueur avec la propriété transform : on ne le
+   fait donc jamais pivoter lui-même, seulement l'épingle qu'il contient. */
+.marqueur-epingle {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border: 2px solid white;
+  border-radius: 50% 50% 50% 0; /* le coin sans arrondi devient la pointe */
+  background: var(--couleur-categorie);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  transform: rotate(-45deg); /* la pointe est tournée vers le bas */
+}
+
+.marqueur-symbole {
+  font-size: 16px;
+  line-height: 1;
+  transform: rotate(45deg); /* remet le symbole à l'endroit */
+}
+
+/* Les marqueurs sont atteignables au clavier (Tab) : on montre le focus */
+.marqueur:focus-visible {
+  outline: 3px solid var(--couleur-focus);
+  outline-offset: 2px;
+  border-radius: 50%;
 }
 
 /* 9. Notification et pied de page --------------------------------------- */

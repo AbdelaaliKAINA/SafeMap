@@ -6,9 +6,11 @@
  *   2. Choix d'un emplacement par clic sur la carte (marqueur déplaçable)
  *   3. « Ma position » : géolocalisation avec carte.locate() et gestion du refus
  *   4. Formulaire de signalement (catégorie, description, emplacement)
+ *   5. Marqueurs colorés : une épingle et un symbole par catégorie (L.divIcon)
+ *   6. Chargement des signalements déjà enregistrés dans Supabase
  *
- * Les signalements sont gardés en mémoire pendant la visite seulement :
- * la sauvegarde est prévue à une étape suivante.
+ * Les nouveaux signalements sont enregistrés dans Supabase (voir signalement.js).
+ * Si Supabase n'est pas disponible, ils sont gardés pendant la visite seulement.
  */
 
 "use strict";
@@ -76,10 +78,30 @@ const casesFiltres = Array.from(document.querySelectorAll(".filtres input[type='
  * ========================================================================= */
 
 const carte = L.map("carte").setView(POSITION_DEPART, ZOOM_DEPART);
-const groupesCategories = {};
+const groupesCategories = {};   // Un groupe de couches par catégorie (sert aux filtres)
+const iconesCategories = {};    // Une icône par catégorie, partagée par tous ses marqueurs
+
+// Crée l'icône d'une catégorie : une épingle de couleur avec le symbole de la catégorie.
+// L.divIcon dessine le marqueur en HTML/CSS au lieu d'une image.
+function creerIcone(categorie) {
+  const infos = CATEGORIES[categorie];
+  return L.divIcon({
+    // Remplace la classe par défaut de Leaflet, la classe de catégorie donne la couleur
+    className: "marqueur " + categorie,
+    html:
+      '<span class="marqueur-epingle" aria-hidden="true">' +
+        '<span class="marqueur-symbole">' + infos.emoji + "</span>" +
+      "</span>" +
+      '<span class="visuellement-cache">Signalement ' + infos.nom + "</span>",
+    iconSize: [34, 34],    // taille de la tête de l'épingle, en pixels
+    iconAnchor: [17, 41],  // point posé sur la coordonnée : la pointe (centre + 34 × √2 / 2 ≈ 24 px)
+    popupAnchor: [0, -38]  // la fenêtre d'information s'ouvre au-dessus de l'épingle
+  });
+}
 
 Object.keys(CATEGORIES).forEach(function (categorie) {
   groupesCategories[categorie] = L.layerGroup().addTo(carte);
+  iconesCategories[categorie] = creerIcone(categorie);
 });
 
 // Tuiles OpenStreetMap ({z} = zoom, {x} et {y} = position de la tuile).
@@ -114,46 +136,13 @@ function genererId() {
   if (window.crypto && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
   }
-
-  function mettreAJourCompteurs() {
-    elements.compteurTotal.textContent = signalements.length;
-    const categoriesVisibles = new Set(
-      casesFiltres.filter(function (caseFiltre) {
-        return caseFiltre.checked;
-      }).map(function (caseFiltre) {
-        return caseFiltre.value;
-      })
-    );
-    elements.compteurVisibles.textContent = signalements.filter(function (signalement) {
-      return categoriesVisibles.has(signalement.categorie);
-    }).length;
-  }
-
-  function appliquerFiltre(caseFiltre) {
-    const groupe = groupesCategories[caseFiltre.value];
-    if (caseFiltre.checked) {
-      groupe.addTo(carte);
-    } else {
-      carte.removeLayer(groupe);
-    }
-    mettreAJourCompteurs();
-  }
-
-  casesFiltres.forEach(function (caseFiltre) {
-    caseFiltre.addEventListener("change", function () {
-      appliquerFiltre(caseFiltre);
-    });
-  });
-
-  document.querySelector("#btn-tout-afficher").addEventListener("click", function () {
-    casesFiltres.forEach(function (caseFiltre) {
-      caseFiltre.checked = true;
-      appliquerFiltre(caseFiltre);
-    });
-  });
-
-  mettreAJourCompteurs();
+  // Solution de repli : date actuelle + nombre aléatoire, en base 36
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+// Indique si le client Supabase (créé dans js/spclient.js) est utilisable
+function supabaseDisponible() {
+  return typeof supabaseClient !== "undefined" && supabaseClient !== null;
 }
 
 
@@ -286,7 +275,7 @@ function creerContenuPopup(signalement) {
   return contenu;
 }
 
-elements.formulaire.addEventListener("submit", function (evenement) {
+elements.formulaire.addEventListener("submit", async function (evenement) {
   evenement.preventDefault(); // Empêche le rechargement de la page
 
   const categorie = elements.categorie.value;
@@ -306,15 +295,166 @@ elements.formulaire.addEventListener("submit", function (evenement) {
     lng: endroitChoisi.lng,
     created_at: new Date().toISOString()
   };
+
+  // Enregistrement dans Supabase. Le bouton est désactivé pendant l'envoi
+  // pour éviter qu'un double clic crée deux fois le même signalement.
+  if (supabaseDisponible()) {
+    elements.btnEnvoyer.disabled = true;
+    try {
+      await enregistrerSignalement(signalement);
+    } catch (erreurEnvoi) {
+      console.error("Enregistrement Supabase impossible :", erreurEnvoi);
+      notifier("Le signalement n'a pas pu être enregistré. Vérifiez votre connexion et réessayez.");
+      return; // Le formulaire est conservé pour pouvoir réessayer
+    } finally {
+      elements.btnEnvoyer.disabled = false;
+    }
+  }
+
   signalements.push(signalement);
 
-  // Marqueur permanent du signalement
-  L.marker([signalement.lat, signalement.lng], { alt: "Signalement " + CATEGORIES[categorie].nom })
+  // Marqueur permanent du signalement, avec l'icône colorée de sa catégorie
+  L.marker([signalement.lat, signalement.lng], { icon: iconesCategories[categorie] })
     .addTo(groupesCategories[categorie])
     .bindPopup(creerContenuPopup(signalement))
     .openPopup();
 
   mettreAJourCompteurs();
   reinitialiserFormulaire();
-  notifier("Signalement publié (non sauvegardé pour l'instant).");
+  notifier(supabaseDisponible()
+    ? "Signalement publié."
+    : "Signalement ajouté pour cette visite seulement (mode local).");
 });
+
+
+/* =========================================================================
+ * 9. FILTRES PAR CATÉGORIE ET COMPTEURS
+ * ========================================================================= */
+
+// Met à jour les deux compteurs : le total, et ceux des catégories cochées
+function mettreAJourCompteurs() {
+  elements.compteurTotal.textContent = signalements.length;
+  const categoriesVisibles = new Set(
+    casesFiltres.filter(function (caseFiltre) {
+      return caseFiltre.checked;
+    }).map(function (caseFiltre) {
+      return caseFiltre.value;
+    })
+  );
+  elements.compteurVisibles.textContent = signalements.filter(function (signalement) {
+    return categoriesVisibles.has(signalement.categorie);
+  }).length;
+}
+
+// Affiche ou masque tout le groupe de couches d'une catégorie.
+// Les marqueurs restent dans leur groupe : on ne les supprime ni ne les recrée.
+function appliquerFiltre(caseFiltre) {
+  const groupe = groupesCategories[caseFiltre.value];
+  if (caseFiltre.checked) {
+    groupe.addTo(carte);
+  } else {
+    carte.removeLayer(groupe);
+  }
+  mettreAJourCompteurs();
+}
+
+casesFiltres.forEach(function (caseFiltre) {
+  caseFiltre.addEventListener("change", function () {
+    appliquerFiltre(caseFiltre);
+  });
+});
+
+document.querySelector("#btn-tout-afficher").addEventListener("click", function () {
+  casesFiltres.forEach(function (caseFiltre) {
+    caseFiltre.checked = true;
+    appliquerFiltre(caseFiltre);
+  });
+});
+
+// Valeurs de départ des compteurs (0 au chargement)
+mettreAJourCompteurs();
+
+
+/* =========================================================================
+ * 10. CHARGEMENT DES SIGNALEMENTS ENREGISTRÉS (Supabase)
+ * ========================================================================= */
+
+// Vérifie qu'une ligne reçue de Supabase est utilisable avant de l'afficher.
+// La base a déjà ses contraintes CHECK, mais on ne fait jamais confiance
+// aveuglément à des données venues de l'extérieur.
+function estSignalementValide(signalement) {
+  if (signalement === null || typeof signalement !== "object") {
+    return false;
+  }
+  if (!Object.hasOwn(CATEGORIES, signalement.categorie)) {
+    return false;
+  }
+  if (typeof signalement.description !== "string") {
+    return false;
+  }
+  const longueur = signalement.description.trim().length;
+  if (longueur < DESCRIPTION_MIN || longueur > DESCRIPTION_MAX) {
+    return false;
+  }
+  return Number.isFinite(signalement.lat) && Math.abs(signalement.lat) <= 90 &&
+         Number.isFinite(signalement.lng) && Math.abs(signalement.lng) <= 180;
+}
+
+// Place un signalement enregistré sur la carte, dans le groupe de sa catégorie
+// (les filtres et les compteurs s'appliquent donc aussi aux anciens signalements).
+function afficherSignalementEnregistre(signalement) {
+  signalements.push(signalement);
+  L.marker([signalement.lat, signalement.lng], { icon: iconesCategories[signalement.categorie] })
+    .addTo(groupesCategories[signalement.categorie])
+    .bindPopup(creerContenuPopup(signalement));
+}
+
+// Récupère tous les signalements de la table « signalements » et les affiche sur la carte.
+async function chargerSignalements() {
+  if (!supabaseDisponible()) {
+    elements.mode.textContent = "Mode local";
+    return;
+  }
+
+  elements.mode.textContent = "Chargement…";
+  try {
+    // Équivaut à : SELECT … FROM signalements ORDER BY created_at
+    // (Supabase renvoie au plus 1000 lignes par défaut.)
+    const { data, error } = await supabaseClient
+      .from("signalements")
+      .select("id, categorie, description, lat, lng, created_at")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    let ignores = 0;
+    data.forEach(function (signalement) {
+      if (estSignalementValide(signalement)) {
+        afficherSignalementEnregistre(signalement);
+      } else {
+        ignores++;
+      }
+    });
+    mettreAJourCompteurs();
+
+    elements.mode.textContent = "Mode partagé · Supabase";
+    const nbCharges = data.length - ignores;
+    let message = nbCharges === 0
+      ? "Aucun signalement enregistré pour l'instant."
+      : nbCharges + " signalement(s) chargé(s).";
+    if (ignores > 0) {
+      message += " " + ignores + " ignoré(s) car invalide(s).";
+      console.warn("Signalements ignorés (données invalides) :", ignores);
+    }
+    notifier(message);
+  } catch (erreur) {
+    // Réseau coupé, clé refusée, table absente… : le reste du site continue de fonctionner
+    console.error("Chargement Supabase impossible :", erreur);
+    elements.mode.textContent = "Mode local (secours)";
+    notifier("Impossible de charger les signalements enregistrés.");
+  }
+}
+
+chargerSignalements();
