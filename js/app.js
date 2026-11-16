@@ -7,6 +7,7 @@
  *   3. « Ma position » : géolocalisation avec carte.locate() et gestion du refus
  *   4. Formulaire de signalement (catégorie, description, emplacement)
  *   5. Marqueurs colorés : une épingle et un symbole par catégorie (L.divIcon)
+ *   6. Chargement des signalements déjà enregistrés dans Supabase
  *
  * Les signalements sont gardés en mémoire pendant la visite seulement :
  * la sauvegarde est prévue à une étape suivante.
@@ -349,3 +350,90 @@ document.querySelector("#btn-tout-afficher").addEventListener("click", function 
 
 // Valeurs de départ des compteurs (0 au chargement)
 mettreAJourCompteurs();
+
+
+/* =========================================================================
+ * 10. CHARGEMENT DES SIGNALEMENTS ENREGISTRÉS (Supabase)
+ * ========================================================================= */
+
+// Vérifie qu'une ligne reçue de Supabase est utilisable avant de l'afficher.
+// La base a déjà ses contraintes CHECK, mais on ne fait jamais confiance
+// aveuglément à des données venues de l'extérieur.
+function estSignalementValide(signalement) {
+  if (signalement === null || typeof signalement !== "object") {
+    return false;
+  }
+  if (!Object.hasOwn(CATEGORIES, signalement.categorie)) {
+    return false;
+  }
+  if (typeof signalement.description !== "string") {
+    return false;
+  }
+  const longueur = signalement.description.trim().length;
+  if (longueur < DESCRIPTION_MIN || longueur > DESCRIPTION_MAX) {
+    return false;
+  }
+  return Number.isFinite(signalement.lat) && Math.abs(signalement.lat) <= 90 &&
+         Number.isFinite(signalement.lng) && Math.abs(signalement.lng) <= 180;
+}
+
+// Place un signalement enregistré sur la carte, dans le groupe de sa catégorie
+// (les filtres et les compteurs s'appliquent donc aussi aux anciens signalements).
+function afficherSignalementEnregistre(signalement) {
+  signalements.push(signalement);
+  L.marker([signalement.lat, signalement.lng], { icon: iconesCategories[signalement.categorie] })
+    .addTo(groupesCategories[signalement.categorie])
+    .bindPopup(creerContenuPopup(signalement));
+}
+
+// Récupère tous les signalements de la table « signalements » et les affiche sur la carte.
+async function chargerSignalements() {
+  // supabaseClient est créé dans js/spclient.js ; il n'existe pas si la
+  // bibliothèque Supabase n'a pas pu être chargée (pas d'Internet, bloqueur…).
+  if (typeof supabaseClient === "undefined" || supabaseClient === null) {
+    elements.mode.textContent = "Mode local";
+    return;
+  }
+
+  elements.mode.textContent = "Chargement…";
+  try {
+    // Équivaut à : SELECT … FROM signalements ORDER BY created_at
+    // (Supabase renvoie au plus 1000 lignes par défaut.)
+    const { data, error } = await supabaseClient
+      .from("signalements")
+      .select("id, categorie, description, lat, lng, created_at")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    let ignores = 0;
+    data.forEach(function (signalement) {
+      if (estSignalementValide(signalement)) {
+        afficherSignalementEnregistre(signalement);
+      } else {
+        ignores++;
+      }
+    });
+    mettreAJourCompteurs();
+
+    elements.mode.textContent = "Mode partagé · Supabase";
+    const nbCharges = data.length - ignores;
+    let message = nbCharges === 0
+      ? "Aucun signalement enregistré pour l'instant."
+      : nbCharges + " signalement(s) chargé(s).";
+    if (ignores > 0) {
+      message += " " + ignores + " ignoré(s) car invalide(s).";
+      console.warn("Signalements ignorés (données invalides) :", ignores);
+    }
+    notifier(message);
+  } catch (erreur) {
+    // Réseau coupé, clé refusée, table absente… : le reste du site continue de fonctionner
+    console.error("Chargement Supabase impossible :", erreur);
+    elements.mode.textContent = "Mode local (secours)";
+    notifier("Impossible de charger les signalements enregistrés.");
+  }
+}
+
+chargerSignalements();
