@@ -9,8 +9,8 @@
  *   5. Marqueurs colorés : une épingle et un symbole par catégorie (L.divIcon)
  *   6. Chargement des signalements déjà enregistrés dans Supabase
  *
- * Les signalements sont gardés en mémoire pendant la visite seulement :
- * la sauvegarde est prévue à une étape suivante.
+ * Les nouveaux signalements sont enregistrés dans Supabase (voir signalement.js).
+ * Si Supabase n'est pas disponible, ils sont gardés pendant la visite seulement.
  */
 
 "use strict";
@@ -138,6 +138,11 @@ function genererId() {
   }
   // Solution de repli : date actuelle + nombre aléatoire, en base 36
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+// Indique si le client Supabase (créé dans js/spclient.js) est utilisable
+function supabaseDisponible() {
+  return typeof supabaseClient !== "undefined" && supabaseClient !== null;
 }
 
 
@@ -270,7 +275,7 @@ function creerContenuPopup(signalement) {
   return contenu;
 }
 
-elements.formulaire.addEventListener("submit", function (evenement) {
+elements.formulaire.addEventListener("submit", async function (evenement) {
   evenement.preventDefault(); // Empêche le rechargement de la page
 
   const categorie = elements.categorie.value;
@@ -290,6 +295,22 @@ elements.formulaire.addEventListener("submit", function (evenement) {
     lng: endroitChoisi.lng,
     created_at: new Date().toISOString()
   };
+
+  // Enregistrement dans Supabase. Le bouton est désactivé pendant l'envoi
+  // pour éviter qu'un double clic crée deux fois le même signalement.
+  if (supabaseDisponible()) {
+    elements.btnEnvoyer.disabled = true;
+    try {
+      await enregistrerSignalement(signalement);
+    } catch (erreurEnvoi) {
+      console.error("Enregistrement Supabase impossible :", erreurEnvoi);
+      notifier("Le signalement n'a pas pu être enregistré. Vérifiez votre connexion et réessayez.");
+      return; // Le formulaire est conservé pour pouvoir réessayer
+    } finally {
+      elements.btnEnvoyer.disabled = false;
+    }
+  }
+
   signalements.push(signalement);
 
   // Marqueur permanent du signalement, avec l'icône colorée de sa catégorie
@@ -300,7 +321,9 @@ elements.formulaire.addEventListener("submit", function (evenement) {
 
   mettreAJourCompteurs();
   reinitialiserFormulaire();
-  notifier("Signalement publié (non sauvegardé pour l'instant).");
+  notifier(supabaseDisponible()
+    ? "Signalement publié."
+    : "Signalement ajouté pour cette visite seulement (mode local).");
 });
 
 
@@ -388,9 +411,7 @@ function afficherSignalementEnregistre(signalement) {
 
 // Récupère tous les signalements de la table « signalements » et les affiche sur la carte.
 async function chargerSignalements() {
-  // supabaseClient est créé dans js/spclient.js ; il n'existe pas si la
-  // bibliothèque Supabase n'a pas pu être chargée (pas d'Internet, bloqueur…).
-  if (typeof supabaseClient === "undefined" || supabaseClient === null) {
+  if (!supabaseDisponible()) {
     elements.mode.textContent = "Mode local";
     return;
   }

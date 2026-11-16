@@ -1,49 +1,28 @@
 /*
  * Enregistrement des signalements dans Supabase
  * ---------------------------------------------
- * Ce fichier récupère les valeurs du formulaire et les coordonnées
- * sélectionnées sur la carte, puis les enregistre dans la table signalements.
+ * Ce fichier reçoit un signalement déjà vérifié par le formulaire (voir app.js)
+ * et l'enregistre dans la table signalements.
  */
 
 /* =========================================================================
- * 1. FORMULAIRE DE SIGNALEMENT
+ * 1. ENREGISTREMENT D'UN SIGNALEMENT
  * ========================================================================= */
 
-const formSignalement = document.getElementById('formulaire')
-
-formSignalement.addEventListener('submit', async function(event){
-    event.preventDefault();
-
-    // Récupère les valeurs saisies dans le formulaire
-    const categorieSignalement = document.getElementById('categorie').value
-    const descriptionSignalement = document.getElementById('description').value
-
-    // Extrait la latitude et la longitude du texte affiché sous la carte
-    const texteLocalisation = document.getElementById('info-endroit').textContent
-    const coordonnees = texteLocalisation.match(/-?\d+(?:\.\d+)?/g) || []
-    const latitudeSignalement = Number(coordonnees[0])
-    const longitudeSignalement = Number(coordonnees[1])
-
-    // Empêche l'envoi si aucun emplacement valide n'a été sélectionné
-    if (coordonnees.length < 2) {
-        console.error("Erreur : emplacement invalide")
-        return
-    }
-
-    // Envoie le signalement dans la table Supabase
+// Envoie le signalement { categorie, description, lat, lng } dans la table Supabase.
+// La date (created_at) et l'identifiant (id) sont ajoutés par la base elle-même.
+// En cas d'échec, l'erreur est relancée : app.js l'attrape pour prévenir la personne.
+async function enregistrerSignalement(signalement) {
     const { error } = await supabaseClient
     .from('signalements')
     .insert([{
-        categorie : categorieSignalement,
-        description : descriptionSignalement,
-        lat : latitudeSignalement,
-        lng : longitudeSignalement
+        categorie : signalement.categorie,
+        description : signalement.description,
+        lat : signalement.lat,
+        lng : signalement.lng
     }]);
 
-    // Signale le résultat de l'enregistrement dans la console
-    if(error){
-        console.error("Erreur : ", error.message)
-    } else {
-        console.log("Réussi ! ");
+    if (error) {
+        throw error
     }
-}, true);
+}
