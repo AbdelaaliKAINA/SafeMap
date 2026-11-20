@@ -8,6 +8,7 @@
  *   4. Formulaire de signalement (catégorie, description, emplacement)
  *   5. Marqueurs colorés : une épingle et un symbole par catégorie (L.divIcon)
  *   6. Chargement des signalements déjà enregistrés dans Supabase
+ *   7. Temps réel : les signalements des autres apparaissent sans recharger la page
  *
  * Les nouveaux signalements sont enregistrés dans Supabase (voir signalement.js).
  * Si Supabase n'est pas disponible, ils sont gardés pendant la visite seulement.
@@ -313,7 +314,8 @@ elements.formulaire.addEventListener("submit", async function (evenement) {
     }
   }
 
-  // On ne l'ajoute que s'il n'est pas déjà sur la carte (même id)
+  // Le temps réel a peut-être déjà affiché ce signalement (s'il est arrivé
+  // avant la réponse de la base) : on ne l'ajoute que s'il n'est pas déjà là.
   const marqueur = afficherSignalementEnregistre(aAfficher);
   if (marqueur !== null) {
     marqueur.openPopup();
@@ -451,6 +453,7 @@ async function chargerSignalements() {
     mettreAJourCompteurs();
 
     elements.mode.textContent = "Mode partagé · Supabase";
+    ecouterNouveauxSignalements(); // à partir de maintenant, on reçoit les ajouts en direct
     const nbCharges = data.length - ignores;
     let message = nbCharges === 0
       ? "Aucun signalement enregistré pour l'instant."
@@ -467,5 +470,46 @@ async function chargerSignalements() {
     notifier("Impossible de charger les signalements enregistrés.");
   }
 }
+
+
+
+/* =========================================================================
+ * 11. TEMPS RÉEL (Supabase Realtime)
+ * ========================================================================= */
+
+// Ouvre un canal qui écoute les ajouts (INSERT) dans la table « signalements ».
+// Quand une autre personne publie un signalement, Supabase nous l'envoie
+// immédiatement et on l'ajoute à la carte, sans recharger la page.
+// (Nécessite la ligne « alter publication supabase_realtime … » de supabase.sql.)
+function ecouterNouveauxSignalements() {
+  supabaseClient
+    .channel("signalements-temps-reel")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "signalements" },
+      function (changement) {
+        const nouveau = changement.new; // la ligne qui vient d'être ajoutée
+        if (!estSignalementValide(nouveau)) {
+          return;
+        }
+        // null = déjà affiché (par exemple notre propre signalement) : on ne fait rien
+        if (afficherSignalementEnregistre(nouveau) !== null) {
+          mettreAJourCompteurs();
+          notifier("Nouveau signalement : " + CATEGORIES[nouveau.categorie].nom);
+        }
+      }
+    )
+    .subscribe(function (etat) {
+      // SUBSCRIBED = connecté ; les autres états signalent un problème de connexion
+      if (etat !== "SUBSCRIBED") {
+        console.warn("Temps réel :", etat);
+      }
+    });
+}
+
+
+/* =========================================================================
+ * 12. DÉMARRAGE
+ * ========================================================================= */
 
 chargerSignalements();
