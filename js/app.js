@@ -298,10 +298,12 @@ elements.formulaire.addEventListener("submit", async function (evenement) {
 
   // Enregistrement dans Supabase. Le bouton est désactivé pendant l'envoi
   // pour éviter qu'un double clic crée deux fois le même signalement.
+  let aAfficher = signalement;
   if (supabaseDisponible()) {
     elements.btnEnvoyer.disabled = true;
     try {
-      await enregistrerSignalement(signalement);
+      // On garde la ligne renvoyée par la base : elle porte le vrai id
+      aAfficher = await enregistrerSignalement(signalement);
     } catch (erreurEnvoi) {
       console.error("Enregistrement Supabase impossible :", erreurEnvoi);
       notifier("Le signalement n'a pas pu être enregistré. Vérifiez votre connexion et réessayez.");
@@ -311,13 +313,11 @@ elements.formulaire.addEventListener("submit", async function (evenement) {
     }
   }
 
-  signalements.push(signalement);
-
-  // Marqueur permanent du signalement, avec l'icône colorée de sa catégorie
-  L.marker([signalement.lat, signalement.lng], { icon: iconesCategories[categorie] })
-    .addTo(groupesCategories[categorie])
-    .bindPopup(creerContenuPopup(signalement))
-    .openPopup();
+  // On ne l'ajoute que s'il n'est pas déjà sur la carte (même id)
+  const marqueur = afficherSignalementEnregistre(aAfficher);
+  if (marqueur !== null) {
+    marqueur.openPopup();
+  }
 
   mettreAJourCompteurs();
   reinitialiserFormulaire();
@@ -400,11 +400,22 @@ function estSignalementValide(signalement) {
          Number.isFinite(signalement.lng) && Math.abs(signalement.lng) <= 180;
 }
 
-// Place un signalement enregistré sur la carte, dans le groupe de sa catégorie
-// (les filtres et les compteurs s'appliquent donc aussi aux anciens signalements).
+// Indique si un signalement (reconnu par son id) est déjà sur la carte
+function estDejaAffiche(id) {
+  return signalements.some(function (signalement) {
+    return signalement.id === id;
+  });
+}
+
+// Place un signalement sur la carte, dans le groupe de sa catégorie
+// (les filtres et les compteurs s'appliquent donc à tous les signalements).
+// Retourne le marqueur créé, ou null si le signalement était déjà affiché.
 function afficherSignalementEnregistre(signalement) {
+  if (estDejaAffiche(signalement.id)) {
+    return null;
+  }
   signalements.push(signalement);
-  L.marker([signalement.lat, signalement.lng], { icon: iconesCategories[signalement.categorie] })
+  return L.marker([signalement.lat, signalement.lng], { icon: iconesCategories[signalement.categorie] })
     .addTo(groupesCategories[signalement.categorie])
     .bindPopup(creerContenuPopup(signalement));
 }
