@@ -79,7 +79,10 @@ const casesFiltres = Array.from(document.querySelectorAll(".filtres input[type='
  * 4. CARTE LEAFLET
  * ========================================================================= */
 
-const carte = L.map("carte").setView(POSITION_DEPART, ZOOM_DEPART);
+// maxZoom est donné à la carte dès sa création : le plugin Leaflet.markercluster
+// en a besoin, et les groupes de regroupement sont créés avant la couche de tuiles
+// (qui fixerait sinon ce zoom maximum). Sans lui : « Map has no maxZoom specified ».
+const carte = L.map("carte", { maxZoom: 19 }).setView(POSITION_DEPART, ZOOM_DEPART);
 const groupesCategories = {};   // Un groupe de marqueurs par catégorie (sert aux filtres et au regroupement)
 const iconesCategories = {};    // Une icône par catégorie, partagée par tous ses marqueurs
 
