@@ -9,6 +9,7 @@
  *   5. Marqueurs colorés : une épingle et un symbole par catégorie (L.divIcon)
  *   6. Chargement des signalements déjà enregistrés dans Supabase
  *   7. Temps réel : les signalements des autres apparaissent sans recharger la page
+ *   8. Regroupement des signalements proches en bulles (plugin Leaflet.markercluster)
  *
  * Les nouveaux signalements sont enregistrés dans Supabase (voir signalement.js).
  * Si Supabase n'est pas disponible, ils sont gardés pendant la visite seulement.
@@ -79,7 +80,7 @@ const casesFiltres = Array.from(document.querySelectorAll(".filtres input[type='
  * ========================================================================= */
 
 const carte = L.map("carte").setView(POSITION_DEPART, ZOOM_DEPART);
-const groupesCategories = {};   // Un groupe de couches par catégorie (sert aux filtres)
+const groupesCategories = {};   // Un groupe de marqueurs par catégorie (sert aux filtres et au regroupement)
 const iconesCategories = {};    // Une icône par catégorie, partagée par tous ses marqueurs
 
 // Crée l'icône d'une catégorie : une épingle de couleur avec le symbole de la catégorie.
@@ -100,8 +101,33 @@ function creerIcone(categorie) {
   });
 }
 
+// Crée le groupe de marqueurs d'une catégorie.
+// Avec le plugin Leaflet.markercluster, les signalements proches sont réunis
+// dans une bulle qui affiche leur nombre ; un clic sur la bulle zoome dessus.
+// Chaque catégorie a son propre groupe : les bulles gardent la couleur de leur
+// catégorie, et les filtres continuent d'afficher ou de masquer un groupe entier.
+// Si le plugin n'a pas pu être chargé, on garde un simple L.layerGroup.
+function creerGroupe(categorie) {
+  if (typeof L.markerClusterGroup !== "function") {
+    return L.layerGroup();
+  }
+  return L.markerClusterGroup({
+    maxClusterRadius: 45,         // distance (en pixels) sous laquelle les marqueurs sont regroupés
+    showCoverageOnHover: false,   // pas de polygone de zone au survol
+    iconCreateFunction: function (grappe) {
+      const nombre = grappe.getChildCount(); // nombre de signalements dans la bulle
+      return L.divIcon({
+        className: "grappe " + categorie,  // la classe de catégorie donne la couleur (voir style.css)
+        html: '<span aria-hidden="true">' + nombre + "</span>" +
+              '<span class="visuellement-cache">' + nombre + " signalements " + CATEGORIES[categorie].nom + "</span>",
+        iconSize: [38, 38]
+      });
+    }
+  });
+}
+
 Object.keys(CATEGORIES).forEach(function (categorie) {
-  groupesCategories[categorie] = L.layerGroup().addTo(carte);
+  groupesCategories[categorie] = creerGroupe(categorie).addTo(carte);
   iconesCategories[categorie] = creerIcone(categorie);
 });
 
@@ -318,7 +344,7 @@ elements.formulaire.addEventListener("submit", async function (evenement) {
   // avant la réponse de la base) : on ne l'ajoute que s'il n'est pas déjà là.
   const marqueur = afficherSignalementEnregistre(aAfficher);
   if (marqueur !== null) {
-    marqueur.openPopup();
+    ouvrirFenetre(marqueur, aAfficher.categorie);
   }
 
   mettreAJourCompteurs();
@@ -400,6 +426,20 @@ function estSignalementValide(signalement) {
   }
   return Number.isFinite(signalement.lat) && Math.abs(signalement.lat) <= 90 &&
          Number.isFinite(signalement.lng) && Math.abs(signalement.lng) <= 180;
+}
+
+// Ouvre la fenêtre d'information d'un marqueur.
+// S'il est caché dans une bulle de regroupement, zoomToShowLayer zoome d'abord
+// jusqu'à ce que le marqueur soit visible, puis ouvre sa fenêtre.
+function ouvrirFenetre(marqueur, categorie) {
+  const groupe = groupesCategories[categorie];
+  if (typeof groupe.zoomToShowLayer === "function" && carte.hasLayer(groupe)) {
+    groupe.zoomToShowLayer(marqueur, function () {
+      marqueur.openPopup();
+    });
+  } else {
+    marqueur.openPopup();
+  }
 }
 
 // Indique si un signalement (reconnu par son id) est déjà sur la carte
