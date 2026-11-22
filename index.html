@@ -8,6 +8,8 @@
 
   <!-- Feuille de style de Leaflet (obligatoire pour afficher correctement la carte) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <!-- Plugin Leaflet.markercluster : regroupe les marqueurs proches en bulles -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
   <!-- Notre feuille de style -->
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -100,8 +102,9 @@
     <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">Données cartographiques © OpenStreetMap</a>
   </footer>
 
-  <!-- Bibliothèques externes (Leaflet, Supabase), chargées AVANT nos scripts qui les utilisent -->
+  <!-- Bibliothèques externes (Leaflet, son plugin de regroupement, Supabase), chargées AVANT nos scripts -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <!-- Nos scripts : la connexion Supabase, l'enregistrement, puis l'application qui les utilise -->
   <script src="js/spclient.js"></script>
