@@ -363,8 +363,25 @@ textarea {
   transform: rotate(45deg); /* remet le symbole à l'endroit */
 }
 
+/* Bulles de regroupement (plugin Leaflet.markercluster, voir creerGroupe dans app.js).
+   Elles reprennent la couleur de leur catégorie grâce à --couleur-categorie. */
+.grappe {
+  display: grid;
+  place-items: center;
+  border: 3px solid white;
+  border-radius: 50%;
+  background: var(--couleur-categorie);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45); /* garde le nombre lisible sur le jaune */
+  cursor: pointer;
+}
+
 /* Les marqueurs sont atteignables au clavier (Tab) : on montre le focus */
-.marqueur:focus-visible {
+.marqueur:focus-visible,
+.grappe:focus-visible {
   outline: 3px solid var(--couleur-focus);
   outline-offset: 2px;
   border-radius: 50%;
