@@ -19,6 +19,7 @@ Technologie explorée : **[Leaflet.js](https://leafletjs.com)**, avec les tuiles
 | Filtres et compteurs | Afficher ou masquer une catégorie, « Tout afficher », total et signalements affichés | un `L.layerGroup` par catégorie, `addTo` / `removeLayer` |
 | Sauvegarde partagée | Signalements enregistrés dans Supabase et rechargés à l'ouverture du site | `supabase-js` : `insert`, `select`, `order` |
 | Temps réel | Un signalement publié par une autre personne apparaît sans recharger la page | Supabase Realtime : `channel`, `postgres_changes` |
+| Regroupement des marqueurs | Les signalements proches forment une bulle de la couleur de leur catégorie, avec leur nombre ; un clic sur la bulle zoome dessus | Plugin [Leaflet.markercluster](https://github.com/Leaflet/Leaflet.markercluster) : `L.markerClusterGroup`, `iconCreateFunction`, `zoomToShowLayer` |
 | Validation et erreurs | Données invalides ignorées, mode local de secours, formulaire conservé si l'envoi échoue | `try` / `catch` / `finally`, `async` / `await` |
 | Adaptation et accessibilité | Ordinateur et téléphone, navigation au clavier, messages lus par les lecteurs d'écran | `@media`, lien d'évitement, `aria-live` |
 
@@ -59,6 +60,12 @@ La base est déjà créée et le site y est connecté (`js/spclient.js`). Pour r
 
 Chaque catégorie a son propre groupe de couches Leaflet (`L.layerGroup`). Chaque signalement, ancien ou nouveau, est ajouté au groupe de sa catégorie. Décocher une catégorie retire tout son groupe de la carte avec `carte.removeLayer(groupe)` ; la recocher le remet avec `groupe.addTo(carte)`. Les marqueurs ne sont jamais supprimés ni recréés.
 
+## Comment fonctionne le regroupement des marqueurs
+
+Quand beaucoup de signalements sont proches, la carte devient illisible. Le plugin **Leaflet.markercluster** remplace alors les marqueurs proches par une bulle qui indique leur nombre. En zoomant, ou en cliquant sur la bulle, les marqueurs se séparent.
+
+Chaque catégorie a son propre groupe `L.markerClusterGroup` (au lieu d'un simple `L.layerGroup`). Ce groupe s'utilise exactement comme un groupe de couches : les filtres l'ajoutent ou le retirent de la carte de la même façon, et les bulles gardent la couleur de leur catégorie. Si le plugin ne se charge pas, le site revient automatiquement à un `L.layerGroup` sans regroupement.
+
 ## Comment fonctionne le temps réel
 
 Après le chargement des signalements, le site ouvre un canal Supabase qui écoute les ajouts (`INSERT`) dans la table `signalements`. Quand quelqu'un publie un signalement, Supabase l'envoie immédiatement à tous les navigateurs ouverts, qui l'ajoutent à la carte.
@@ -82,7 +89,7 @@ SafeMap/
 
 | Membre | Contributions principales |
 |---|---|
-| Abdelaali Kaina | Mise en place du dépôt et de la structure HTML/CSS ; carte Leaflet et choix de l'emplacement ; géolocalisation « Ma position » ; formulaire de signalement ; temps réel Supabase ; documentation |
+| Abdelaali Kaina | Mise en place du dépôt et de la structure HTML/CSS ; carte Leaflet et choix de l'emplacement ; géolocalisation « Ma position » ; formulaire de signalement ; temps réel Supabase ; regroupement des marqueurs (Leaflet.markercluster) ; mise en ligne sur GitHub Pages ; documentation |
 | Gilbrin Matheis | Ajustements mobile et accessibilité ; premiers filtres par catégorie ; connexion à Supabase (`spclient.js`) ; enregistrement des signalements (`signalement.js`) |
 | Gibert Kilyan | Marqueurs personnalisés par catégorie (`L.divIcon`) ; correction des filtres et des compteurs ; chargement et affichage des signalements enregistrés ; fiabilisation de l'enregistrement |
 
@@ -92,11 +99,12 @@ L'historique complet est visible dans les commits et les *pull requests* du dép
 
 - Pas de comptes utilisateurs : la modification et la suppression d'un signalement se font par l'équipe dans le tableau de bord Supabase.
 - Supabase renvoie au plus 1000 signalements par requête.
-- Pas encore de recherche d'adresse ni de regroupement des marqueurs proches (améliorations possibles : plugins Leaflet *Control.Geocoder* et *MarkerCluster*).
+- Pas encore de recherche d'adresse (amélioration possible : plugin Leaflet *Control.Geocoder*).
 
 ## Crédits
 
 - [Leaflet](https://leafletjs.com) — bibliothèque de cartographie (licence BSD-2).
+- [Leaflet.markercluster](https://github.com/Leaflet/Leaflet.markercluster) — regroupement des marqueurs (licence MIT).
 - © [Contributeurs OpenStreetMap](https://www.openstreetmap.org/copyright) — fond de carte.
 - [Supabase](https://supabase.com) — base de données et temps réel.
 
