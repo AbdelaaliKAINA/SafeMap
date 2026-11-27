@@ -82,7 +82,15 @@ const casesFiltres = Array.from(document.querySelectorAll(".filtres input[type='
 // maxZoom est donné à la carte dès sa création : le plugin Leaflet.markercluster
 // en a besoin, et les groupes de regroupement sont créés avant la couche de tuiles
 // (qui fixerait sinon ce zoom maximum). Sans lui : « Map has no maxZoom specified ».
-const carte = L.map("carte", { maxZoom: 19 }).setView(POSITION_DEPART, ZOOM_DEPART);
+// Limites du monde (latitude, longitude) : la carte ne peut pas être glissée au-delà
+const LIMITES_MONDE = L.latLngBounds([-85, -180], [85, 180]);
+
+const carte = L.map("carte", {
+  maxZoom: 19,
+  minZoom: 3,                  // on ne peut plus dézoomer au point de voir le monde se répéter
+  maxBounds: LIMITES_MONDE,    // empêche de glisser la carte dans les zones grises
+  maxBoundsViscosity: 1.0      // 1.0 = bord « dur » : la carte s'arrête net à la limite
+}).setView(POSITION_DEPART, ZOOM_DEPART);
 const groupesCategories = {};   // Un groupe de marqueurs par catégorie (sert aux filtres et au regroupement)
 const iconesCategories = {};    // Une icône par catégorie, partagée par tous ses marqueurs
 
@@ -138,6 +146,7 @@ Object.keys(CATEGORIES).forEach(function (categorie) {
 // L'attribution est obligatoire selon la politique d'utilisation d'OpenStreetMap.
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
+  noWrap: true,   // les tuiles ne sont pas répétées à gauche et à droite du monde
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 }).addTo(carte);
 
